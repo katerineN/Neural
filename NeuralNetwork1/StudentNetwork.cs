@@ -92,30 +92,137 @@ namespace NeuralNetwork1
                 error = 0;
             }
         }
+
+        
+        
+        public class Layer
+        {
+            public double[] input = null;
+            public double[] data = null;
+            public Layer prev = null;
+            public double[,] weights = null;
+            //генератор для инициализации весов
+            private static Random randGenerator = new Random();
+            //Минимальное значение для инициализации весов
+            private static double initMinWeight = -1;
+            //Максимальное значение для инициализации весов
+            private static double initMaxWeight = 1;
+
+            public Layer(Layer pr, int l)
+            {
+                input = new double[l];
+                //доп нейрон со значением 1 или -1
+                input[l - 1] = 1;
+                prev = pr;
+            }
+
+            public static double[] MultVecMatrix(double[] m1, double[,] m2)
+            {
+                double[] res = new double[m1.Length];
+                for (int i = 0; i < m1.Length; i++)
+                {
+                    double sum = 0.0;
+                    for(int j = 0; j < m2.GetLength(1); j++)
+                    {
+                        sum += m1[i] * m2[i, j];
+                    }
+                    res[i] = sum;
+                }
+                
+                return res;
+            }
+
+            public void SetData(Sample s)
+            {
+                data = s.input;
+            }
+            
+            
+            //Функция активации
+            public double Sigmoid(double a)
+            {
+                return 1 / (1 + Math.Exp(-a));
+            }
+            
+            public double[] FuncActivate()
+            {
+                double[] matr = new double[input.Length + 1];
+                double[] temp = MultVecMatrix(input, weights);
+                for (int i = 0; i < temp.Length - 1; i++)
+                {
+                    matr[i] = Sigmoid(temp[i]);
+                }
+
+                matr[input.Length - 1] = 1;
+                return matr;
+            }
+
+            public void CreateNeuralNetwork(Sample sample)
+            {
+                //если слой первый
+                if (prev == null)
+                {
+                    SetData(sample);
+                }
+                else
+                {
+                    prev.CreateNeuralNetwork(sample);
+                    input = prev.FuncActivate();
+                }
+            }
+            
+            public void CreateNeuralNetwork1(Sample sample, List<Layer> layers)
+            {
+                for (int i = 0; i < layers.Count; i++)
+                {
+                    if (i == 0)
+                    {
+                        layers[i].SetData(sample);
+                    }
+                    else
+                    {
+                        input = prev.FuncActivate();
+                    }
+                }
+            }
+
+            public void FillWeights(int length)
+            {
+                weights = new double[input.Length, length];
+                for (int i = 0; i < input.Length; i++)
+                {
+                    for (int j = 0; j < length; j++)
+                    {
+                        weights[i,j] = initMinWeight + randGenerator.NextDouble() * (initMaxWeight - initMinWeight);
+                    }
+                }
+            }
+        }
         
         // Список всех слоев нейронных сетей
         public List<List<Neuron>> Layers = new List<List<Neuron>>();
 
+        public List<Layer> layers = new List<Layer>();
+        public double Speed = 0.02;
+        
+        
         /// <summary>
         /// Конструктор сети с указанием структуры (количество слоёв и нейронов в них)
         /// </summary>
         /// <param name="structure">Массив с указанием нейронов на каждом слое (включая сенсорный)</param>
         public StudentNetwork(int[] structure)
         {
+            Layer prev = null;
             for (int i = 0; i < structure.Length; i++)
             {
-                //Задаем слой сети
-                List<Neuron> layer = new List<Neuron>();
-                for (int ii = 0; ii < structure[i]; ii++)
+                Layer temp = new Layer(prev, structure[i]+1);
+                layers.Add(temp);
+                //зададим рандомно веса
+                if (prev != null)
                 {
-                    //заполняем первый слой
-                    //так как слой ни на что не ссылается
-                    if (i == 0)
-                        layer.Add(new Neuron());
-                    //иначе берем конструктор со ссылкой на предыдущий слой
-                    else layer.Add(new Neuron(Layers[i - 1]));
+                    prev.FillWeights(temp.input.Length);
                 }
-                Layers.Add(layer);
+                prev = temp;
             }
         }
 
@@ -182,6 +289,7 @@ namespace NeuralNetwork1
         /// <returns>Количество итераций для достижения заданного уровня ошибки</returns>
         public override int Train(Sample sample, double acceptableError, bool parallel)
         {
+            /*
             int cnt = 0;
             
             while (cnt < 50)
@@ -198,6 +306,8 @@ namespace NeuralNetwork1
 
             System.Diagnostics.Debug.WriteLine("Выход по числу итераций");
             return cnt;
+            */
+            
         }
 
         /// <summary>
