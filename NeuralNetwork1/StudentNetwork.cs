@@ -4,39 +4,52 @@ using System.Linq;
 using System.Windows.Forms;
 using Accord.Diagnostics;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace NeuralNetwork1
 {
     public class StudentNetwork : BaseNetwork
     {
-        
+
         public class Neuron
         {
             //входной сигнал
             public double input = 0;
+
             //выходной сигнал
             public double output = 0;
+
             //ошибка
             public double error = 0;
+
             //сигнал поляризации 
             public static double biasSignal = 1.0;
+
             //генератор для инициализации весов
             private static Random randGenerator = new Random();
+
             //Минимальное значение для инициализации весов
             private static double initMinWeight = -1;
+
             //Максимальное значение для инициализации весов
             private static double initMaxWeight = 1;
+
             //Колво узлов на предыдущем слое
             public int inputLayerSize = 0;
+
             //Массив входных весов нейрона
             public double[] weights = null;
+
             //Вес на сигнале поляризации
             public double biasWeight = 0.001;
+
             //Ссылка на предыдущий слой нейронов
             public List<Neuron> inputLayer = null;
 
-            public Neuron(){ }
-            
+            public Neuron()
+            {
+            }
+
             public Neuron(List<Neuron> prevLayer)
             {
                 //задаем ссылку на предыдущий слов
@@ -55,7 +68,7 @@ namespace NeuralNetwork1
                     weights[i] = -1 + randGenerator.NextDouble() * 2;
                 }
             }
-            
+
             //Функция активации
             public void funcActivate()
             {
@@ -66,7 +79,7 @@ namespace NeuralNetwork1
                 }
 
                 output = 1 / (1 + Math.Exp(-input));
-                
+
                 //сбросили входной сигнал
                 input = 0;
             }
@@ -76,13 +89,13 @@ namespace NeuralNetwork1
                 //ошибка в текущем нейроне
                 error *= output * (1 - output);
                 biasWeight += speed * error * biasSignal;
-                
+
                 //переносим ошибку на предыдущий слой
                 for (int i = 0; i < inputLayerSize; i++)
                 {
                     inputLayer[i].error += error * weights[i];
                 }
-                
+
                 //корректируем веса
                 for (int i = 0; i < inputLayerSize; i++)
                 {
@@ -93,18 +106,22 @@ namespace NeuralNetwork1
             }
         }
 
-        
-        
+
+
         public class Layer
         {
             public double[] input = null;
-            public double[] data = null;
+            public static double[] data = null;
             public Layer prev = null;
+
             public double[,] weights = null;
+
             //генератор для инициализации весов
-            private static Random randGenerator = new Random();
+            public static Random randGenerator = new Random();
+
             //Минимальное значение для инициализации весов
             private static double initMinWeight = -1;
+
             //Максимальное значение для инициализации весов
             private static double initMaxWeight = 1;
 
@@ -116,96 +133,89 @@ namespace NeuralNetwork1
                 prev = pr;
             }
 
-            public static double[] MultVecMatrix(double[] m1, double[,] m2)
+            public static double[] Mult(double[] vec, double[,] matr)
             {
-                double[] res = new double[m1.Length];
-                for (int i = 0; i < m1.Length; i++)
+                double[] res = new double[matr.GetLength(1)];
+                Parallel.For(0, matr.GetLength(1), j =>
                 {
-                    double sum = 0.0;
-                    for(int j = 0; j < m2.GetLength(1); j++)
+                    double a = 0.0;
+                    for (int i = 0; i < vec.Length - 1; ++i)
                     {
-                        sum += m1[i] * m2[i, j];
+                        a += vec[i] * matr[i, j];
                     }
-                    res[i] = sum;
-                }
-                
+
+                    res[j] = a;
+                });
                 return res;
             }
 
-            public void SetData(Sample s)
-            {
-                data = s.input;
+            public static double[] MultVecMatrix(double[] m1, double[,] m2)
+            {  
+                double[] res = new double[m2.GetLength(1)];
+                for (int i = 0; i < m2.GetLength(0); i++)
+                {
+                    double sum = 0.0;
+                    for (int j = 0; j < m1.Length; j++)
+                    {
+                        sum += m1[i] * m2[i, j];
+                    }
+
+                    res[i] = sum;
+                }
+
+                return res;
             }
-            
-            
+
+            public void SetData()
+            {
+                input = data;
+            }
+
+            public void SetData(double[] inp)
+            {
+                input = inp;
+            }
+
             //Функция активации
             public double Sigmoid(double a)
             {
                 return 1 / (1 + Math.Exp(-a));
             }
-            
+
             public double[] FuncActivate()
             {
-                double[] matr = new double[input.Length + 1];
-                double[] temp = MultVecMatrix(input, weights);
-                for (int i = 0; i < temp.Length - 1; i++)
+                double[] temp = Mult(input, weights);
+                double[] matrix = new double[temp.Length + 1];
+                for (int i = 0; i < temp.Length; i++)
                 {
-                    matr[i] = Sigmoid(temp[i]);
+                    matrix[i] = Sigmoid(temp[i]);
                 }
-
-                matr[input.Length - 1] = 1;
-                return matr;
+                matrix[matrix.Length - 1] = 1;
+                return matrix;
             }
 
-            public void CreateNeuralNetwork(Sample sample)
-            {
-                //если слой первый
-                if (prev == null)
-                {
-                    SetData(sample);
-                }
-                else
-                {
-                    prev.CreateNeuralNetwork(sample);
-                    input = prev.FuncActivate();
-                }
-            }
-            
-            public void CreateNeuralNetwork1(Sample sample, List<Layer> layers)
-            {
-                for (int i = 0; i < layers.Count; i++)
-                {
-                    if (i == 0)
-                    {
-                        layers[i].SetData(sample);
-                    }
-                    else
-                    {
-                        input = prev.FuncActivate();
-                    }
-                }
-            }
+
 
             public void FillWeights(int length)
             {
-                weights = new double[input.Length, length];
+                weights = new double[input.Length + 1, length];
                 for (int i = 0; i < input.Length; i++)
                 {
-                    for (int j = 0; j < length; j++)
+                    for (int j = 0; j < length - 1; j++)
                     {
-                        weights[i,j] = initMinWeight + randGenerator.NextDouble() * (initMaxWeight - initMinWeight);
+                        weights[i, j] = initMinWeight + randGenerator.NextDouble() * (initMaxWeight - initMinWeight);
                     }
                 }
             }
         }
-        
+
         // Список всех слоев нейронных сетей
-        public List<List<Neuron>> Layers = new List<List<Neuron>>();
+        //public List<List<Neuron>> Layers = new List<List<Neuron>>();
 
         public List<Layer> layers = new List<Layer>();
-        public double Speed = 0.02;
-        
-        
+        public double Speed = 0.1;
+        public Stopwatch Stopwatch = new Stopwatch();
+
         /// <summary>
         /// Конструктор сети с указанием структуры (количество слоёв и нейронов в них)
         /// </summary>
@@ -215,72 +225,151 @@ namespace NeuralNetwork1
             Layer prev = null;
             for (int i = 0; i < structure.Length; i++)
             {
-                Layer temp = new Layer(prev, structure[i]+1);
+                Layer temp = new Layer(prev, structure[i] + 1);
                 layers.Add(temp);
                 //зададим рандомно веса
                 if (prev != null)
                 {
-                    prev.FillWeights(temp.input.Length);
+                    //prev.FillWeights(temp.input.Length);
+                    prev.weights = new double[prev.input.Length, temp.input.Length - 1];
+                    for (int ii = 0; ii < prev.input.Length; ii++)
+                    {
+                        for (int j = 0; j < temp.input.Length - 1; j++)
+                        {
+                            //prev.weights[ii, j] = initMinWeight + randGenerator.NextDouble() * (initMaxWeight - initMinWeight);
+                            prev.weights[ii, j] = Layer.randGenerator.NextDouble() - 0.5;
+                        }
+                    }
                 }
+
                 prev = temp;
             }
-        }
-
-        /// <summary>
-        /// Прямое распространение сигнала по сети по заданному образу
-        /// </summary>
-        /// <param name="sample"></param>
-        public void Forward(Sample sample)
-        {
-            //по образу заполняем сенсоры
-            for (int i = 0; i < sample.input.Length; i++)
-            {
-                Layers[0][i].output = sample.input[i];
-            }
-            
-            //проходим по всем слоям (кроме 0) и выполняем нужные вычисления
-            for (int i = 1; i < Layers.Count; i++)
-            {
-                for (int j = 0; j < Layers[i].Count; j++)
-                {
-                    Layers[i][j].funcActivate();
-                }
-            }
-
-            //передаем в образ результат распознавания
-            double[] temp = new double[Layers.Last().Count];
-            for (int i = 0; i < Layers.Last().Count; i++)
-            {
-                temp[i] = Layers.Last()[i].output;
-            }
-
-            sample.ProcessPrediction(temp);
         }
 
         /// <summary>
         /// Обратное распространение ошибки
         /// </summary>
         /// <param name="sample"></param>
-        public void Backward(Sample sample)
+        public double[][] Backward(double[] sampleOutput)
         {
-            //берем данные с образа
-            for (int i = 0; i < Layers[Layers.Count-1].Count; i++)
+            int length = layers.Count;
+            double[][] res = new double[length][];
+            for (int i = 0; i < length; i++)
             {
-                if ((int) sample.actualClass == i)
-                {
-                    Layers.Last()[i].error = (1 - Layers.Last()[i].output) * Layers.Last()[i].error;
-                }
-                else Layers.Last()[i].error = (0 - Layers.Last()[i].output) * Layers.Last()[i].error;
+                //без свободного
+                res[i] = new double[layers[i].input.Length - 1];
             }
 
-            for (int i = Layers.Count-1; i > 0; i--)
+            for (int i = length - 1; i > 0; i--)
             {
-                foreach (var n in Layers[i])
+                //если слой последний
+                if (i == length - 1)
                 {
-                    n.BackError(0.02);
+                    for (int j = 0; j < layers[i].input.Length - 1; j++)
+                    {
+                        double yj = layers[i].input[j];
+                        //высчитываем дельту
+                        res[i][j] = yj * (1 - yj) * (sampleOutput[j] * yj);
+                    }
+                }
+
+                else
+                {
+                    for (int j = 0; j < layers[i].input.Length - 1; j++)
+                    {
+                        double yj = layers[i].input[j];
+                        double sum = 0;
+                        for (int k = 0; k < res[i + 1].Length; k++)
+                        {
+                            sum += res[i + 1][k] * layers[i].weights[j, k];
+                        }
+                        res[i][j] = yj * (1 - yj) * sum;
+                    }
+                }
+            }
+
+            return res;
+        }
+
+        public void CreateNeuralNetwork(Sample sample)
+        {
+            for (int i = 0; i < layers.Count; i++)
+            {
+                if (i == 0)
+                {
+                    layers[i].SetData();
+                }
+                else
+                {
+                    layers[i].input = layers[i].prev.FuncActivate();
                 }
             }
         }
+        
+        public void CreateNeuralNetwork(double[] inp)
+        {
+            for (int i = 0; i < layers.Count; i++)
+            {
+                if (i == 0)
+                {
+                    layers[i].SetData(inp);
+                }
+                else
+                {
+                    layers[i].input = layers[i].prev.FuncActivate();
+                }
+            }
+        }
+
+        public double EstimatedError(double[] output)
+        {
+            double res = 0;
+            for (int i = 0; i < output.Length; ++i)
+                res += Math.Pow(layers.Last().input[i] - output[i], 2);
+            return res;
+        }
+
+        public double HelpTrain(Sample sample)
+        {
+            Layer.data = sample.input;
+            CreateNeuralNetwork(sample);
+            double error = EstimatedError(sample.Output);
+            double[][] deltas = Backward(sample.Output);
+            //корректируем веса
+            for (int i = 1; i < layers.Count; i++)
+            {
+                for (int j = 0; j < layers[i - 1].input.Length; j++)
+                {
+                    for (int k = 0; k < layers[i].input.Length - 1; k++)
+                    {
+                        layers[i - 1].weights[j, k] += Speed * deltas[i][k] * layers[i - 1].input[j];
+                    }
+                }
+            }
+
+            return error;
+        }
+        
+        public double HelpTrain(double[] input, double[] output)
+        {
+            CreateNeuralNetwork(input);
+            double error = EstimatedError(output);
+            double[][] deltas = Backward(output);
+            //корректируем веса
+            for (int i = 1; i < layers.Count; i++)
+            {
+                for (int j = 0; j < layers[i - 1].input.Length; j++)
+                {
+                    for (int k = 0; k < layers[i].input.Length - 1; k++)
+                    {
+                        layers[i - 1].weights[j, k] += Speed * deltas[i][k] * layers[i - 1].input[j];
+                    }
+                }
+            }
+
+            return error;
+        }
+
 
         /// <summary>
         /// Обучение сети одному образу
@@ -289,27 +378,36 @@ namespace NeuralNetwork1
         /// <returns>Количество итераций для достижения заданного уровня ошибки</returns>
         public override int Train(Sample sample, double acceptableError, bool parallel)
         {
-            /*
             int cnt = 0;
-            
-            while (cnt < 50)
+            while (HelpTrain(sample) > acceptableError)
             {
-                Forward(sample);
-                if (sample.EstimatedError() < 0.1 && sample.Correct())
-                {
-                    return cnt;
-                }
-
                 cnt++;
-                Backward(sample);
             }
 
-            System.Diagnostics.Debug.WriteLine("Выход по числу итераций");
             return cnt;
-            */
-            
         }
 
+        protected override double[] Compute(double[] input)
+        {
+            CreateNeuralNetwork(input);
+            
+            return layers.Last().input.Take(layers.Last().input.Length - 1).ToArray();
+        }
+        
+        private double TrainEpoch(double[][] inputs, double[][] outputs, bool parallel)
+        {
+            double err = 0.0;
+            if (parallel)
+                Parallel.ForEach(inputs.Zip(outputs, (i, o) => (i, o)), p => err += HelpTrain(p.i, p.o));
+            else
+                foreach (var pair in inputs.Zip(outputs, (i, o) => (i, o)))
+                {
+                    err += HelpTrain(pair.i, pair.o);
+                }
+
+            return err;
+        }
+        
         /// <summary>
         /// Обучаем нейросеть на готовом датасете
         /// </summary>
@@ -318,79 +416,67 @@ namespace NeuralNetwork1
         /// <param name="acceptableError"></param>
         /// <param name="parallel"></param>
         /// <returns></returns>
-        public override double TrainOnDataSet(SamplesSet samplesSet, int epochsCount, double acceptableError, bool parallel)
+        public override double TrainOnDataSet(SamplesSet samplesSet, int epochsCount, double acceptableError,
+            bool parallel)
         {
-            var t = System.DateTime.Now;
-            //точность
-            double accuracy = 0;
-            //рассмотренные образы
-            int samplesLooked = 0; 
-            //всевозможные элементы для рассмотрения
-            double allSamples = samplesSet.samples.Count * epochsCount; 
-
-            while (epochsCount-- > 0)
+            //ошибка
+            double error = 0;
+            int epoch = 0;
+            Stopwatch.Restart();
+            while (epoch ++ < epochsCount)
             {
-                //колво правильно обученного
-                double rightCnt = 0;
-                
+                int count = 0;
+                error = 0;
                 foreach (var sample in samplesSet.samples)
                 {
-                    //если мы правильно предсказали
-                    if (Train(sample, 0.0005, true) < 50) 
-                        rightCnt++;
-                    samplesLooked++;
-                    //обновляем прогресс
-                    if (samplesLooked % 10 == 0) 
-                        OnTrainProgress(samplesLooked / allSamples, accuracy, DateTime.Now - t);
+                    count++;
+                    error += HelpTrain(sample);
+                    if (error > acceptableError)
+                        if(count % 10 == 0)
+                            OnTrainProgress((epoch * 1.0) / epochsCount, error, Stopwatch.Elapsed);
+                    if(error <= acceptableError) 
+                        break;
+                    
                 }
-                
-                //точность, которую мы передаем потом в форму
-                accuracy = rightCnt / samplesSet.samples.Count; 
-                if (accuracy >= 1 - acceptableError - 1e-10) {
-                    OnTrainProgress(1, accuracy, DateTime.Now - t);
-                    return accuracy;
-                }
-                else OnTrainProgress(samplesLooked / allSamples, accuracy, DateTime.Now - t);
-            }
-
-            OnTrainProgress(1, accuracy, DateTime.Now - t);
-            return accuracy;
-        }
-        
-        /// <summary>
-        /// Запустить сеть на примере и вернуть распознанный класс
-        /// </summary>
-        public override FigureType Predict(Sample sample)
-        {
-            Forward(sample);
-            return sample.recognizedClass;
-        }
-
-        protected override double[] Compute(double[] input)
-        {
-            //по образу заполняем сенсоры
-            for (int i = 0; i < input.Length; i++)
-            {
-                Layers[0][i].output = input[i];
+                if (error > acceptableError)
+                    OnTrainProgress((epoch * 1.0) / epochsCount, error, Stopwatch.Elapsed);
+                else break;
             }
             
-            //проходим по всем слоям (кроме 0) и выполняем нужные вычисления
-            for (int i = 1; i < Layers.Count; i++)
+            OnTrainProgress(1.0, double.MaxValue, Stopwatch.Elapsed);
+            Stopwatch.Stop();
+            return error;
+            /*int epochs = 0;
+            double err = double.MaxValue;
+
+            double[][] inputs = new double[samplesSet.Count][];
+            double[][] outputs = new double[samplesSet.Count][];
+
+            //  Теперь массивы из samplesSet группируем в inputs и outputs
+            for (int i = 0; i < samplesSet.Count; ++i)
             {
-                for (int j = 0; j < Layers[i].Count; j++)
-                {
-                    Layers[i][j].funcActivate();
-                }
+                inputs[i] = samplesSet[i].input.Append(1).ToArray();
+                outputs[i] = samplesSet[i].Output;
             }
 
-            //передаем в образ результат распознавания
-            double[] temp = new double[Layers.Last().Count];
-            for (int i = 0; i < Layers[Layers.Count-1].Count; i++)
+            Stopwatch.Restart();
+
+            double error = 0.0;
+
+            while (epochs++ < epochsCount && (error = TrainEpoch(inputs, outputs, parallel)) > acceptableError)
             {
-                temp[i] = Layers[Layers.Count - 1][i].output;
+#if DEBUG
+                Console.WriteLine(epochs + " " + error);
+#endif
+                Console.WriteLine(epochs + " " + error);
+                OnTrainProgress((epochs * 1.0) / epochsCount, error, Stopwatch.Elapsed);
             }
 
-            return temp;
+            OnTrainProgress(1.0, err, Stopwatch.Elapsed);
+
+            Stopwatch.Stop();
+
+            return error;*/
         }
     }
 }

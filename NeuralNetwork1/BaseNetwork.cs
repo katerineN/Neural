@@ -43,7 +43,7 @@ namespace NeuralNetwork1
         /// </summary>
         /// <param name="sample">Фигура, которую необходимо определить</param>
         /// <returns>Возвращает тип фигуры</returns>
-        public virtual FigureType Predict(Sample sample)
+        public FigureType Predict(Sample sample)
         {
             return sample.ProcessPrediction(Compute(sample.input));
         }

@@ -219,5 +219,20 @@ namespace NeuralNetwork1
         {
             infoStatusLabel.Text = "Тестировать нейросеть на тестовой выборке такого же размера";
         }
+
+        private void button1_Click_1(object sender, EventArgs e)
+        {
+            //  Создаём новую обучающую выборку
+            SamplesSet samples = new SamplesSet();
+
+            var curNet = Net;
+            for (int i = 0; i < 20; i++)
+                samples.AddSample(generator.GenerateFigure());
+            curNet.TrainOnDataSet(samples, 20, (100 - AccuracyCounter.Value) / 100.0, true);
+            //  Проверяем корректность задания структуры сети
+            //int[] structure = CurrentNetworkStructure();
+            //var net = new StudentNetwork(structure);
+
+        }
     }
 }
