@@ -11,20 +11,17 @@ namespace NeuralNetwork1
     {
         public class Layer
         {
+            //входные веса
             public double[] input = null;
+            //входыне первоначальные данные
             public static double[] data = null;
+            //предыдущий слой
             public Layer prev = null;
-
+            //матрица весов
             public double[,] weights = null;
 
             //генератор для инициализации весов
             public static Random randGenerator = new Random();
-
-            //Минимальное значение для инициализации весов
-            private static double initMinWeight = -1;
-
-            //Максимальное значение для инициализации весов
-            private static double initMaxWeight = 1;
 
             public Layer(Layer pr, int l)
             {
@@ -34,6 +31,12 @@ namespace NeuralNetwork1
                 prev = pr;
             }
 
+            /// <summary>
+            /// Перемножение матрицы и вектора
+            /// </summary>
+            /// <param name="m1">вектор</param>
+            /// <param name="m2">матрица</param>
+            /// <returns>вектор, полученный в ходе перемножения</returns>
             public static double[] MultVecMatrix(double[] m1, double[,] m2)
             {  
                 double[] res = new double[m2.GetLength(1)];
@@ -47,51 +50,33 @@ namespace NeuralNetwork1
 
                     res[i] = sum;
                 }
-
                 return res;
             }
 
+            /// <summary>
+            /// Устанавливает входные данные образа
+            /// </summary>
             public void SetData()
             {
                 input = data;
             }
 
+            /// <summary>
+            /// Устанавливает входные данные
+            /// </summary>
+            /// <param name="inp">массив данных</param>
             public void SetData(double[] inp)
             {
                 input = inp;
             }
-
             
-            public double[] ProduceValue()
-            {
-                var temp = MultVecMatrix(input, weights);
-                double[] matrix = new double[temp.Length + 1];
-                for (int i = 0; i < temp.Length; i++)
-                {
-                    matrix[i] = Sigmoid(temp[i]);
-                }
-                matrix[matrix.Length - 1] = 1;
-                return matrix;
-            }
-
-            public void ComputeValue()
-            {
-                if (prev == null)
-                    input = data;
-                else
-                {
-                    prev.ComputeValue();
-                    var temp = prev.ProduceValue();
-                    input = temp; 
-                }
-
-            }
             //Функция активации
             public double Sigmoid(double a)
             {
                 return 1 / (1 + Math.Exp(-a));
             }
 
+            //пересчитываем функцию активации
             public double[] FuncActivate()
             {
                 double[] temp = MultVecMatrix(input, weights);
@@ -129,7 +114,6 @@ namespace NeuralNetwork1
                 //зададим рандомно веса
                 if (prev != null)
                 {
-                    //prev.FillWeights(temp.input.Length);
                     prev.weights = new double[prev.input.Length, temp.input.Length - 1];
                     for (int ii = 0; ii < prev.input.Length; ii++)
                     {
@@ -147,7 +131,7 @@ namespace NeuralNetwork1
         /// <summary>
         /// Обратное распространение ошибки
         /// </summary>
-        /// <param name="sample"></param>
+        /// <param name="SampleOutput"></param>
         public double[][] Backward(double[] SampleOutput)
         {
             int length = layers.Count;
@@ -181,6 +165,7 @@ namespace NeuralNetwork1
                         {
                             sum += res[i + 1][k] * layers[i].weights[j, k];
                         }
+                        //дельта
                         res[i][j] = yj * (1 - yj) * sum;
                     }
                 }
@@ -189,6 +174,9 @@ namespace NeuralNetwork1
             return res;
         }
         
+        /// <summary>
+        /// Заполняет входные веса каждого слоя с помощью функции активации
+        /// </summary>
         public void CreateNeuralNetwork()
         {
             for (int i = 0; i < layers.Count; i++)
@@ -204,6 +192,10 @@ namespace NeuralNetwork1
             }
         }
         
+        /// <summary>
+        /// Это то же самое только для входного массива
+        /// </summary>
+        /// <param name="inp"></param>
         public void CreateNeuralNetwork(double[] inp)
         {
             for (int i = 0; i < layers.Count; i++)
@@ -218,21 +210,12 @@ namespace NeuralNetwork1
                 }
             }
         }
-
-        public void Temp(List<Layer> l)
-        {
-            for (int i = 0; i < l.Count; i++)
-            {
-                if (i == 0)
-                {
-                    l[i].SetData();
-                }
-                else
-                {
-                    l[i].input = l[i].prev.ProduceValue();
-                }
-            }
-        }
+        
+        /// <summary>
+        /// Вычисленная суммарная квадратичная ошибка сети
+        /// </summary>
+        /// <param name="output">выходные данные образа</param>
+        /// <returns></returns>
         public double EstimatedError(double[] output)
         {
             double res = 0.0;
@@ -241,11 +224,15 @@ namespace NeuralNetwork1
             return res / 2;
         }
 
-        public double HelpTrain(Sample sample)
+        /// <summary>
+        /// Пробегаем по нейросети 
+        /// </summary>
+        /// <param name="sample"></param>
+        /// <returns></returns>
+        public double Forward(Sample sample)
         {
             Layer.data = sample.input;
             CreateNeuralNetwork();
-            //layers.Last().ComputeValue();
             double error = EstimatedError(sample.Output);
             double[][] deltas = Backward(sample.Output);
             //корректируем веса
@@ -262,27 +249,6 @@ namespace NeuralNetwork1
 
             return error;
         }
-        
-        public double HelpTrain(double[] input, double[] output)
-        {
-            CreateNeuralNetwork(input);
-            double error = EstimatedError(output);
-            double[][] deltas = Backward(output);
-            //корректируем веса
-            for (int i = 1; i < layers.Count; i++)
-            {
-                for (int j = 0; j < layers[i - 1].input.Length; j++)
-                {
-                    for (int k = 0; k < layers[i].input.Length - 1; k++)
-                    {
-                        layers[i - 1].weights[j, k] += Speed * deltas[i][k] * layers[i - 1].input[j];
-                    }
-                }
-            }
-
-            return error;
-        }
-
 
         /// <summary>
         /// Обучение сети одному образу
@@ -291,8 +257,9 @@ namespace NeuralNetwork1
         /// <returns>Количество итераций для достижения заданного уровня ошибки</returns>
         public override int Train(Sample sample, double acceptableError, bool parallel)
         {
+            //колво итераций
             int cnt = 0;
-            while (HelpTrain(sample) > acceptableError)
+            while (Forward(sample) > acceptableError)
             {
                 cnt++;
             }
@@ -309,44 +276,10 @@ namespace NeuralNetwork1
         /// <returns></returns>
         public override double TrainOnDataSet(SamplesSet samplesSet, int epochsCount, double acceptableError, bool parallel)
         {
-            /*for (int i = 0; i < samplesSet.Count; ++i)
-            {
-                samplesSet[i].input = samplesSet[i].input.Append(1).ToArray();
-            }
-            //ошибка
-            double error = 0;
-            //int epoch = 0;
-            Stopwatch.Restart();
-            /*while (epoch++ <epochsCount && (error = TrainEpoch(samplesSet, acceptableError,parallel))>acceptableError)
-            {
-                OnTrainProgress(((epoch * 1.0) / epochsCount), error, Stopwatch.Elapsed);
-            }
-            */
-            /*while (epoch ++ < epochsCount)
-            {
-                int count = 0;
-                error = 0;
-                foreach (var sample in samplesSet.samples)
-                {
-                    count++;
-                    error += HelpTrain(sample);
-                    if (error > acceptableError)
-                        if(count % 50 == 0)
-                            OnTrainProgress((epoch * 1.0) / epochsCount, error, Stopwatch.Elapsed);
-                    if(error <= acceptableError) 
-                        break;
-                }
-                /*if (error > acceptableError)
-                    OnTrainProgress((epoch * 1.0) / epochsCount, error, Stopwatch.Elapsed);
-                else break;
-            }
-            
-            OnTrainProgress(1.0, double.MaxValue, Stopwatch.Elapsed);
-            Stopwatch.Stop();*/
-
-
-            int totalSamplesCount = epochsCount * samplesSet.Count;
-            int count = 0;
+            //общее количество образов, которые мы рассмотрим
+            int allSamples = epochsCount * samplesSet.Count;
+            //число реально просмотренных образов
+            int samplesLooked = 0;
             double error = 0.0;
             double meanError;
             Stopwatch.Restart();
@@ -355,11 +288,11 @@ namespace NeuralNetwork1
                 for (int i = 0; i < samplesSet.samples.Count; i++)
                 {
                     var s = samplesSet.samples[i];
-                    error += HelpTrain(s);
-                    count++;
+                    error += Forward(s);
+                    samplesLooked++;
                     if (i % 100 == 0)
                     {
-                        OnTrainProgress(1.0 * count / totalSamplesCount, error / (e * samplesSet.Count + i + 1),
+                        OnTrainProgress(1.0 * samplesLooked / allSamples, error / (e * samplesSet.Count + i + 1),
                             Stopwatch.Elapsed);
                     }
                 }
